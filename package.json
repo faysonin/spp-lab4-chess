@@ -1,0 +1,18 @@
+{
+  "name": "spp-lab4-chess",
+  "version": "1.0.0",
+  "description": "СПП ЛР4 — онлайн-шахматы через WebSocket",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": ["websocket", "chess", "spp", "lab4"],
+  "license": "ISC",
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

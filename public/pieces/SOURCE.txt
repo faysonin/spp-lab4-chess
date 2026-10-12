@@ -1,0 +1,4 @@
+Набор SVG-фигур: Colin M.L. Burnett (CBurnett), Wikimedia Commons.
+Лицензия: Creative Commons Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0).
+https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces
+Цвета слегка подогнаны под деревянную доску (светлая заливка / тёмный контур и наоборот).
