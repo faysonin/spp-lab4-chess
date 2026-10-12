@@ -15,7 +15,7 @@
 
   function wsUrl() {
     var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return proto + '//' + location.host;
+    return proto + '//' + location.host + '/ws';
   }
 
   function clearTimers() {
@@ -26,17 +26,23 @@
   function connect(url) {
     lastUrl = url || lastUrl || wsUrl();
     closedOnPurpose = false;
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
     clearTimers();
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      emit('status', { state: 'offline' });
-      return;
+    if (ws) {
+      try {
+        ws.onclose = null;
+        ws.onerror = null;
+        ws.close();
+      } catch (e) { /* ignore */ }
+      ws = null;
     }
     emit('status', { state: attempts === 0 ? 'connecting' : 'reconnect' });
     try { ws = new WebSocket(lastUrl); } catch (e) { scheduleReconnect(); return; }
 
     ws.onopen = function () {
       attempts = 0;
-      pingTimer = setInterval(function () { send({ type: 'ping' }); }, 15000);
+      pingTimer = setInterval(function () { send({ type: 'ping' }); }, 8000);
+      send({ type: 'ping' });
       emit('status', { state: 'online' });
       emit('open');
     };
@@ -49,7 +55,7 @@
       if (closedOnPurpose) { emit('status', { state: 'offline' }); return; }
       scheduleReconnect();
     };
-    ws.onerror = function () { if (ws) ws.close(); };
+    ws.onerror = function () { /* onclose сам переподключит; close() здесь давал цикл */ };
   }
 
   function scheduleReconnect() {
@@ -77,11 +83,13 @@
   }
 
   window.addEventListener('online', function () {
-    if (!isOpen() && !closedOnPurpose) { attempts = 0; connect(lastUrl); }
+    if (closedOnPurpose) return;
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+    attempts = 0;
+    connect(lastUrl);
   });
   window.addEventListener('offline', function () {
     emit('status', { state: 'offline' });
-    if (ws) ws.close();
   });
 
   function isOpen() { return !!(ws && ws.readyState === WebSocket.OPEN); }

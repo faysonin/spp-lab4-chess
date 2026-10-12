@@ -57,16 +57,17 @@ SVG в `public/pieces/` — набор Colin M.L. Burnett (Wikimedia), CC BY-SA 
 
 Готово к хостингу: `Procfile`, `render.yaml`, `fly.toml`, `GET /health`.
 
-**Live URL (сейчас):** https://font-eyes-deals-eight.trycloudflare.com
+**Live URL:** https://chess-faysonin.bonto.run/
 
-Это Cloudflare Quick Tunnel к локальному `npm start` на этом компьютере.
-Работает, пока запущены сервер и `cloudflared`. После перезапуска URL сменится.
-Стабильный хостинг без туннеля — Render (бесплатно):
+Код: https://github.com/faysonin/spp-lab4-chess
 
-1. Залить репозиторий с корневой папкой `СПП/ЛР4` на GitHub.
-2. [dashboard.render.com](https://dashboard.render.com) → New Web Service.
-3. Build: `npm install`, Start: `npm start`.
-4. Открыть `https://<имя>.onrender.com`.
+Render (бесплатно, репозиторий уже готов):
+
+1. Войти на [dashboard.render.com](https://dashboard.render.com) через GitHub (`faysonin`).
+2. **New +** → **Web Service** → выбрать `spp-lab4-chess`.
+3. Root Directory: пусто (репозиторий уже из папки лабораторной).
+4. Runtime: Node, Build: `npm install`, Start: `npm start`.
+5. Создать сервис → URL вида `https://spp-lab4-chess.onrender.com`.
 
 ## Защита (коротко)
 

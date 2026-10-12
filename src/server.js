@@ -90,14 +90,24 @@ function serveFile(req, res) {
 }
 
 const httpServer = http.createServer(serveFile);
-const wss = new WebSocketServer({ server: httpServer });
+/** Отдельный путь /ws — прокси (Bonto и др.) стабильнее апгрейдят его, чем «/». */
+const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false });
+
+httpServer.on('upgrade', (req, socket, head) => {
+  const pathname = decodeURIComponent((req.url || '/').split('?')[0]);
+  if (pathname === '/' || pathname === '/ws') {
+    wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+    return;
+  }
+  socket.destroy();
+});
 
 wss.on('connection', (ws) => {
-  ws.isAlive = true;
+  ws.lastSeen = Date.now();
   ws.playerId = null;
   ws.roomCode = null;
-  ws.on('pong', () => { ws.isAlive = true; });
   ws.on('message', (raw) => {
+    ws.lastSeen = Date.now();
     let msg;
     try { msg = JSON.parse(String(raw)); } catch {
       sendJson(ws, { type: 'error', code: 'BAD_JSON', message: 'Ожидался JSON' });
@@ -221,16 +231,13 @@ function handle(ws, msg) {
   sendJson(ws, { type: 'error', code: 'UNKNOWN', message: 'Неизвестное сообщение' });
 }
 
+/** Не шлём WebSocket ping-кадры: многие прокси их глотают, и сервер рвал сокет каждые ~25 с. */
 const heartbeat = setInterval(() => {
+  const now = Date.now();
   wss.clients.forEach((ws) => {
-    if (!ws.isAlive) {
-      ws.terminate();
-      return;
-    }
-    ws.isAlive = false;
-    ws.ping();
+    if (now - (ws.lastSeen || 0) > 90000) ws.terminate();
   });
-}, 25000);
+}, 30000);
 wss.on('close', () => clearInterval(heartbeat));
 
 function shutdown() {
