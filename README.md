@@ -57,7 +57,7 @@ SVG в `public/pieces/` — набор Colin M.L. Burnett (Wikimedia), CC BY-SA 
 
 Готово к хостингу: `Procfile`, `render.yaml`, `fly.toml`, `GET /health`.
 
-**Live URL:** https://chess-faysonin.bonto.run/
+**Live URL:** https://chess.bonto.run/
 
 Код: https://github.com/faysonin/spp-lab4-chess
 
