@@ -80,7 +80,13 @@ function serveFile(req, res) {
       return;
     }
     const ext = path.extname(abs).toLowerCase();
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    const cache = (ext === '.svg' || ext === '.png' || ext === '.ico')
+      ? 'public, max-age=86400'
+      : 'no-cache';
+    res.writeHead(200, {
+      'Content-Type': MIME[ext] || 'application/octet-stream',
+      'Cache-Control': cache
+    });
     if (req.method === 'HEAD') {
       res.end();
       return;
@@ -102,6 +108,46 @@ httpServer.on('upgrade', (req, socket, head) => {
   socket.destroy();
 });
 
+/** Если сокет моргнул, не выкидываем игрока сразу — иначе все в комнате перерисовывают доску. */
+const DISCONNECT_GRACE_MS = 15000;
+const leaveTimers = new Map();
+
+function leaveKey(roomCode, playerId) {
+  return roomCode + ':' + playerId;
+}
+
+function cancelLeave(roomCode, playerId) {
+  const key = leaveKey(roomCode, playerId);
+  const timer = leaveTimers.get(key);
+  if (!timer) return false;
+  clearTimeout(timer);
+  leaveTimers.delete(key);
+  return true;
+}
+
+function hasLiveSocket(roomCode, playerId, except) {
+  let live = false;
+  wss.clients.forEach((c) => {
+    if (c !== except && c.readyState === 1 && c.playerId === playerId && c.roomCode === roomCode) {
+      live = true;
+    }
+  });
+  return live;
+}
+
+function scheduleLeave(roomCode, playerId) {
+  const key = leaveKey(roomCode, playerId);
+  if (leaveTimers.has(key)) return;
+  leaveTimers.set(key, setTimeout(() => {
+    leaveTimers.delete(key);
+    if (hasLiveSocket(roomCode, playerId, null)) return;
+    const room = game.getRoom(roomCode);
+    const player = room && room.players[playerId];
+    game.leaveRoom(room, player);
+    if (room) broadcast(wss, room.code, { type: 'state', snapshot: roomState(wss, room, null) });
+  }, DISCONNECT_GRACE_MS));
+}
+
 wss.on('connection', (ws) => {
   ws.lastSeen = Date.now();
   ws.playerId = null;
@@ -121,12 +167,8 @@ wss.on('connection', (ws) => {
   });
   ws.on('close', () => {
     if (!ws.roomCode || !ws.playerId) return;
-    const room = game.getRoom(ws.roomCode);
-    const player = room && room.players[ws.playerId];
-    game.leaveRoom(room, player);
-    if (room) {
-      broadcast(wss, room.code, { type: 'state', snapshot: roomState(wss, room, null) });
-    }
+    if (hasLiveSocket(ws.roomCode, ws.playerId, ws)) return;
+    scheduleLeave(ws.roomCode, ws.playerId);
   });
 });
 
@@ -149,6 +191,7 @@ function handle(ws, msg) {
       sendJson(ws, { type: 'error', code: 'JOIN', message: result.error });
       return;
     }
+    const reconnected = cancelLeave(result.room.code, result.player.id);
     ws.playerId = result.player.id;
     ws.roomCode = result.room.code;
     sendJson(ws, {
@@ -157,10 +200,12 @@ function handle(ws, msg) {
       roomCode: result.room.code,
       snapshot: roomState(wss, result.room, result.player.id)
     });
-    broadcast(wss, result.room.code, {
-      type: 'state',
-      snapshot: roomState(wss, result.room, null)
-    }, ws);
+    if (!reconnected) {
+      broadcast(wss, result.room.code, {
+        type: 'state',
+        snapshot: roomState(wss, result.room, null)
+      }, ws);
+    }
     return;
   }
 
@@ -177,6 +222,7 @@ function handle(ws, msg) {
   }
 
   if (msg.type === 'leave') {
+    cancelLeave(room.code, player.id);
     ws.playerId = null;
     ws.roomCode = null;
     game.leaveRoom(room, player);

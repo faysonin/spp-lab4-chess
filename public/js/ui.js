@@ -5,6 +5,8 @@
   var selected = null;
   var legal = [];
   var els = {};
+  var squares = [];
+  var lastFlip = null;
 
   function $(id) { return document.getElementById(id); }
 
@@ -137,44 +139,74 @@
     return legal.some(function (m) { return m.to === i; });
   }
 
-  function renderBoard(snap, youRole) {
-    var flip = youRole === 'b';
-    var last = snap.lastMove;
+  function ensureBoard(flip) {
+    if (squares.length === 64 && lastFlip === flip) return;
+    lastFlip = flip;
     renderCoords(flip);
     els.board.innerHTML = '';
-    var order = [];
-    var r, f, idx;
+    squares = [];
+    var r, f, vis, idx, sq;
+    vis = 0;
     for (r = 0; r < 8; r++) {
       for (f = 0; f < 8; f++) {
         idx = flip ? (7 - r) * 8 + (7 - f) : r * 8 + f;
-        order.push(idx);
+        sq = document.createElement('button');
+        sq.type = 'button';
+        sq.className = 'sq ' + ((vis % 8 + Math.floor(vis / 8)) % 2 === 0 ? 'light' : 'dark');
+        sq.dataset.i = String(idx);
+        els.board.appendChild(sq);
+        squares.push(sq);
+        vis++;
       }
     }
-    order.forEach(function (i, vis) {
-      var sq = document.createElement('button');
-      sq.type = 'button';
-      sq.className = 'sq ' + (((vis % 8) + Math.floor(vis / 8)) % 2 === 0 ? 'light' : 'dark');
-      sq.dataset.i = String(i);
-      if (selected === i) sq.classList.add('selected');
-      if (last && (last.from === i || last.to === i)) sq.classList.add('last');
-      var p = snap.board[i];
-      var file = window.ChessRules.pieceFile(p);
-      if (file) {
-        var img = document.createElement('img');
-        img.src = '/pieces/' + file + '.svg';
-        img.alt = p;
-        sq.appendChild(img);
-      }
-      if (isLegalTo(i)) {
-        if (p && p !== '.') sq.classList.add('capture');
-        else {
-          var dot = document.createElement('span');
+  }
+
+  function setPieceImg(sq, p) {
+    var file = window.ChessRules.pieceFile(p);
+    var img = sq._img;
+    if (!file) {
+      if (img) { img.remove(); sq._img = null; }
+      return;
+    }
+    if (!img) {
+      img = document.createElement('img');
+      img.alt = '';
+      sq.appendChild(img);
+      sq._img = img;
+    }
+    if (img.getAttribute('data-p') !== p) {
+      img.src = '/pieces/' + file + '.svg';
+      img.alt = p;
+      img.setAttribute('data-p', p);
+    }
+  }
+
+  function renderBoard(snap, youRole) {
+    var flip = youRole === 'b';
+    var last = snap.lastMove;
+    ensureBoard(flip);
+    var vis, sq, i, p, dot;
+    for (vis = 0; vis < 64; vis++) {
+      sq = squares[vis];
+      i = Number(sq.dataset.i);
+      sq.classList.toggle('selected', selected === i);
+      sq.classList.toggle('last', !!(last && (last.from === i || last.to === i)));
+      p = snap.board[i];
+      setPieceImg(sq, p);
+      sq.classList.toggle('capture', isLegalTo(i) && !!(p && p !== '.'));
+      dot = sq._dot;
+      if (isLegalTo(i) && (!p || p === '.')) {
+        if (!dot) {
+          dot = document.createElement('span');
           dot.className = 'dot';
           sq.appendChild(dot);
+          sq._dot = dot;
         }
+      } else if (dot) {
+        dot.remove();
+        sq._dot = null;
       }
-      els.board.appendChild(sq);
-    });
+    }
   }
 
   function setSelection(from, moves) {

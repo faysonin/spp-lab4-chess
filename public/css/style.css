@@ -19,14 +19,6 @@ html, body {
   border-radius: 10px;
 }
 
-.eyebrow {
-  margin: 0 0 6px;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #6b7c8d;
-}
-
 h1 { margin: 0 0 8px; font-size: 26px; }
 .lead, .muted { color: #5b6b7b; }
 
@@ -137,6 +129,7 @@ input[type="text"] {
   display: flex;
   align-items: center;
   justify-content: center;
+  touch-action: manipulation;
 }
 
 .sq.light { background: #f0d9b5; }

@@ -130,6 +130,7 @@ function joinRoom({ nickname, roomCode, seat, playerId }, onlineIds) {
     return { error: 'Этот ник уже занят в комнате' };
   }
 
+  const isNew = !player;
   if (!player) {
     player = {
       id: generateId(),
@@ -166,11 +167,13 @@ function joinRoom({ nickname, roomCode, seat, playerId }, onlineIds) {
   if (player.role === 'w' && room.seats.w) room.seats.w.nickname = player.nickname;
   if (player.role === 'b' && room.seats.b) room.seats.b.nickname = player.nickname;
 
-  addLog(room, player.role === 's'
-    ? `${player.nickname} смотрит партию`
-    : `${player.nickname} сел за ${player.role === 'w' ? 'белых' : 'чёрных'}`);
+  if (isNew) {
+    addLog(room, player.role === 's'
+      ? `${player.nickname} смотрит партию`
+      : `${player.nickname} сел за ${player.role === 'w' ? 'белых' : 'чёрных'}`);
+    persist();
+  }
   room.updatedAt = nowIso();
-  persist();
   return { room, player };
 }
 

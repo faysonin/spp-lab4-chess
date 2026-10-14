@@ -27,11 +27,17 @@
     CH.ui.setQueue(!!pending);
   }
 
+  function boardKey(s) {
+    if (!s) return '';
+    return (s.board && s.board.join('')) + '|' + s.moveNumber + '|' + (s.lastMove ? s.lastMove.from + '-' + s.lastMove.to : '');
+  }
+
   function applySnap(next, keepRole) {
+    var sameBoard = snap && boardKey(snap) === boardKey(next);
     snap = next;
     if (!keepRole && next.youRole) youRole = next.youRole;
     CH.ui.renderMeta(snap, youRole, roomCode);
-    CH.ui.renderBoard(snap, youRole);
+    if (!sameBoard) CH.ui.renderBoard(snap, youRole);
   }
 
   function sendJoin() {
@@ -65,8 +71,22 @@
       expectedMoveNumber: snap.moveNumber,
       requestId: Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
     };
-    savePending();
+    var preview = rules.applyMove(asState(), from, to);
     CH.ui.clearSelection();
+    if (!preview.error) {
+      snap = Object.assign({}, snap, {
+        board: preview.state.board,
+        turn: preview.state.turn,
+        moveNumber: preview.state.moveNumber,
+        status: preview.state.status,
+        winner: preview.state.winner,
+        check: preview.state.check,
+        lastMove: { from: from, to: to }
+      });
+      CH.ui.renderBoard(snap, youRole);
+      CH.ui.renderMeta(snap, youRole, roomCode);
+    }
+    savePending();
     flushPending();
   }
 
@@ -127,6 +147,7 @@
   }
 
   function onMessage(msg) {
+    if (msg.type === 'pong') return;
     if (msg.type === 'welcome') {
       joined = true;
       playerId = msg.playerId;

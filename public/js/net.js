@@ -41,7 +41,7 @@
 
     ws.onopen = function () {
       attempts = 0;
-      pingTimer = setInterval(function () { send({ type: 'ping' }); }, 8000);
+      pingTimer = setInterval(function () { send({ type: 'ping' }); }, 20000);
       send({ type: 'ping' });
       emit('status', { state: 'online' });
       emit('open');
