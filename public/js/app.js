@@ -45,15 +45,12 @@
     var session = loadSession() || {};
     var payload = {
       type: 'join',
-      nickname: form.nickname || session.nickname,
+      nickname: form.nickname || session.nickname || 'Игрок',
       roomCode: form.roomCode || session.roomCode || '',
       seat: form.seat || session.seat || '',
       playerId: session.playerId || undefined
     };
-    if (!payload.nickname || payload.nickname.length < 2) {
-      CH.ui.toast('Введите ник');
-      return;
-    }
+    if (!payload.nickname) payload.nickname = 'Игрок';
     saveSession({ nickname: payload.nickname, roomCode: payload.roomCode, seat: payload.seat });
     joined = true;
     CH.net.send(payload);
@@ -219,7 +216,7 @@
     saveSession(CH.ui.joinForm());
     if (CH.net.isOpen()) sendJoin();
     else {
-      CH.ui.toast('Подключаемся…');
+      CH.ui.setConnection('connecting');
       CH.net.reconnectNow();
     }
   });

@@ -13,9 +13,9 @@
       <h1>Шахматы</h1>
       <p class="lead">Два игрока за столом, остальные смотрят. Ходы сразу видны всем в комнате.</p>
       <p id="lobbyStatus" class="status wait">Подключение…</p>
-      <form id="joinForm" autocomplete="off">
+      <form id="joinForm" autocomplete="off" novalidate>
         <label>Ник
-          <input id="nickInput" type="text" maxlength="16" placeholder="Игрок" required>
+          <input id="nickInput" type="text" maxlength="16" placeholder="Игрок" value="Игрок">
         </label>
         <label>Код комнаты
           <input id="roomInput" type="text" maxlength="8" placeholder="Пусто — создать новую" class="mono">

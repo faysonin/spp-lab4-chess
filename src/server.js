@@ -1,12 +1,9 @@
 'use strict';
 
 /**
- * HTTP + WebSocket на одном порту.
- * Клиент → сервер: join | move {from,to,expectedMoveNumber,requestId} | resign | ping | leave
- * Сервер → клиент: welcome (snapshot) | moved | conflict | players | log | pong | error
- *
- * Конфликт: expectedMoveNumber !== chess.moveNumber → «Конфликт: ход уже сделан».
- * Persist: data/game.json после каждого изменения комнаты.
+ * HTTP + WebSocket на одном порту (библиотека ws вешается на тот же http.Server).
+ * Клиент → сервер: join | move | resign | ping | leave
+ * Сервер → клиент: welcome | moved | conflict | state | pong | error
  */
 
 const http = require('http');
@@ -35,7 +32,7 @@ function sendJson(ws, payload) {
   if (ws.readyState === 1) ws.send(JSON.stringify(payload));
 }
 
-function onlineIds(roomCode, wss) {
+function onlineIds(roomCode) {
   const ids = new Set();
   wss.clients.forEach((c) => {
     if (c.roomCode === roomCode && c.playerId) ids.add(c.playerId);
@@ -43,19 +40,19 @@ function onlineIds(roomCode, wss) {
   return ids;
 }
 
-function broadcast(wss, roomCode, payload, except) {
+function broadcast(roomCode, payload, except) {
   const raw = JSON.stringify(payload);
   wss.clients.forEach((c) => {
     if (c !== except && c.roomCode === roomCode && c.readyState === 1) c.send(raw);
   });
 }
 
-function roomState(wss, room, youId) {
-  return game.snapshot(room, onlineIds(room.code, wss), youId);
+function roomState(room, youId) {
+  return game.snapshot(room, onlineIds(room.code), youId);
 }
 
 function serveFile(req, res) {
-  if (req.method === 'GET' && req.url === '/health') {
+  if (req.method === 'GET' && (req.url || '').split('?')[0] === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ ok: true }));
     return;
@@ -96,19 +93,14 @@ function serveFile(req, res) {
 }
 
 const httpServer = http.createServer(serveFile);
-/** Отдельный путь /ws — прокси (Bonto и др.) стабильнее апгрейдят его, чем «/». */
-const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false });
 
-httpServer.on('upgrade', (req, socket, head) => {
-  const pathname = decodeURIComponent((req.url || '/').split('?')[0]);
-  if (pathname === '/' || pathname === '/ws') {
-    wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
-    return;
-  }
-  socket.destroy();
+/** Без path-фильтра: прокси (Cloudflare/Bonto) шлёт Upgrade на /, /ws или другой путь. */
+const wss = new WebSocketServer({
+  server: httpServer,
+  perMessageDeflate: false,
+  clientTracking: true
 });
 
-/** Если сокет моргнул, не выкидываем игрока сразу — иначе все в комнате перерисовывают доску. */
 const DISCONNECT_GRACE_MS = 15000;
 const leaveTimers = new Map();
 
@@ -117,6 +109,7 @@ function leaveKey(roomCode, playerId) {
 }
 
 function cancelLeave(roomCode, playerId) {
+  if (!roomCode || !playerId) return false;
   const key = leaveKey(roomCode, playerId);
   const timer = leaveTimers.get(key);
   if (!timer) return false;
@@ -144,7 +137,7 @@ function scheduleLeave(roomCode, playerId) {
     const room = game.getRoom(roomCode);
     const player = room && room.players[playerId];
     game.leaveRoom(room, player);
-    if (room) broadcast(wss, room.code, { type: 'state', snapshot: roomState(wss, room, null) });
+    if (room) broadcast(room.code, { type: 'state', snapshot: roomState(room, null) });
   }, DISCONNECT_GRACE_MS));
 }
 
@@ -198,12 +191,12 @@ function handle(ws, msg) {
       type: 'welcome',
       playerId: result.player.id,
       roomCode: result.room.code,
-      snapshot: roomState(wss, result.room, result.player.id)
+      snapshot: roomState(result.room, result.player.id)
     });
     if (!reconnected) {
-      broadcast(wss, result.room.code, {
+      broadcast(result.room.code, {
         type: 'state',
-        snapshot: roomState(wss, result.room, null)
+        snapshot: roomState(result.room, null)
       }, ws);
     }
     return;
@@ -226,7 +219,7 @@ function handle(ws, msg) {
     ws.playerId = null;
     ws.roomCode = null;
     game.leaveRoom(room, player);
-    broadcast(wss, room.code, { type: 'state', snapshot: roomState(wss, room, null) });
+    broadcast(room.code, { type: 'state', snapshot: roomState(room, null) });
     return;
   }
 
@@ -236,9 +229,9 @@ function handle(ws, msg) {
       sendJson(ws, { type: 'error', code: result.code, message: result.error });
       return;
     }
-    const payload = { type: 'state', snapshot: roomState(wss, room, null), logEntry: result.logEntry };
+    const payload = { type: 'state', snapshot: roomState(room, null), logEntry: result.logEntry };
     sendJson(ws, payload);
-    broadcast(wss, room.code, payload, ws);
+    broadcast(room.code, payload, ws);
     return;
   }
 
@@ -250,7 +243,7 @@ function handle(ws, msg) {
         type: 'conflict',
         requestId,
         message: result.message,
-        snapshot: roomState(wss, room, player.id)
+        snapshot: roomState(room, player.id)
       });
       return;
     }
@@ -260,24 +253,23 @@ function handle(ws, msg) {
         code: result.code || 'MOVE',
         message: result.error,
         requestId,
-        snapshot: roomState(wss, room, player.id)
+        snapshot: roomState(room, player.id)
       });
       return;
     }
     const payload = {
       type: 'moved',
       requestId,
-      snapshot: roomState(wss, room, null)
+      snapshot: roomState(room, null)
     };
     sendJson(ws, payload);
-    broadcast(wss, room.code, payload, ws);
+    broadcast(room.code, payload, ws);
     return;
   }
 
   sendJson(ws, { type: 'error', code: 'UNKNOWN', message: 'Неизвестное сообщение' });
 }
 
-/** Не шлём WebSocket ping-кадры: многие прокси их глотают, и сервер рвал сокет каждые ~25 с. */
 const heartbeat = setInterval(() => {
   const now = Date.now();
   wss.clients.forEach((ws) => {

@@ -4,7 +4,7 @@ const path = require('path');
 const store = require('./store');
 const rules = require(path.join(__dirname, '..', 'public', 'js', 'rules.js'));
 
-const NICK_RE = /^[\p{L}\p{N} _.-]{2,16}$/u;
+const NICK_RE = /^[\p{L}\p{N} _.\-@]{1,16}$/u;
 const ROOM_RE = /^[A-Z0-9]{3,8}$/;
 const MAX_LOG = 40;
 
@@ -102,7 +102,7 @@ function snapshot(room, onlineIds, youId) {
 
 function validateNick(nickname) {
   if (typeof nickname !== 'string' || !NICK_RE.test(nickname.trim())) {
-    return { error: 'Ник: 2–16 символов (буквы, цифры, пробел, _.-)' };
+    return { error: 'Ник: 1–16 символов' };
   }
   return { nick: nickname.trim() };
 }

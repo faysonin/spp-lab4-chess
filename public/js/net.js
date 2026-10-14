@@ -7,30 +7,15 @@
   var reconnectTimer = null;
   var pingTimer = null;
   var closedOnPurpose = false;
-  var urlIndex = 0;
 
   function emit(event, payload) {
     (listeners[event] || []).forEach(function (fn) { fn(payload); });
   }
 
-  function urls() {
+  /** Тот же хост, что и страница — так Cloudflare/Bonto пропускают Upgrade. */
+  function wsUrl() {
     var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    var host = location.host;
-    return [
-      proto + '//' + host + '/ws',
-      proto + '//' + host + '/',
-      proto + '//' + host
-    ];
-  }
-
-  function currentUrl() {
-    var list = urls();
-    return list[urlIndex % list.length];
-  }
-
-  function nextUrl() {
-    urlIndex = (urlIndex + 1) % urls().length;
-    return currentUrl();
+    return proto + '//' + location.host;
   }
 
   function clearTimers() {
@@ -56,8 +41,7 @@
     clearTimers();
     dropSocket();
     emit('status', { state: attempts === 0 ? 'connecting' : 'reconnect' });
-    var url = currentUrl();
-    try { ws = new WebSocket(url); } catch (e) { scheduleReconnect(); return; }
+    try { ws = new WebSocket(wsUrl()); } catch (e) { scheduleReconnect(); return; }
 
     ws.onopen = function () {
       attempts = 0;
@@ -73,15 +57,14 @@
       clearTimers();
       ws = null;
       if (closedOnPurpose) { emit('status', { state: 'offline' }); return; }
-      nextUrl();
       scheduleReconnect();
     };
-    ws.onerror = function () { /* onclose переподключит */ };
+    ws.onerror = function () { /* закроется сам, onclose переподключит */ };
   }
 
   function scheduleReconnect() {
     emit('status', { state: 'reconnect' });
-    var delay = Math.min(8000, 400 * Math.pow(2, Math.min(attempts, 5)));
+    var delay = Math.min(8000, 500 * Math.pow(2, Math.min(attempts, 4)));
     attempts += 1;
     reconnectTimer = setTimeout(function () { connect(true); }, delay);
   }
