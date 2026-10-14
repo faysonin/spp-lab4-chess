@@ -21,6 +21,7 @@ html, body {
 
 h1 { margin: 0 0 8px; font-size: 26px; }
 .lead, .muted { color: #5b6b7b; }
+#lobbyStatus { margin: 10px 0 0; }
 
 form, fieldset { display: grid; gap: 10px; margin: 16px 0 0; }
 fieldset { border: 1px solid #d5dee7; border-radius: 8px; padding: 8px 10px; }
@@ -42,10 +43,12 @@ input[type="text"] {
   border: 0;
   background: #2f6fed;
   color: #fff;
-  padding: 9px 14px;
+  padding: 12px 14px;
+  min-height: 44px;
   border-radius: 6px;
   cursor: pointer;
-  font: 600 14px/1 "Segoe UI", sans-serif;
+  font: 600 16px/1 "Segoe UI", sans-serif;
+  touch-action: manipulation;
 }
 .btn.quiet { background: #eef2f6; color: #334; }
 .link { border: 0; background: none; color: #2f6fed; cursor: pointer; font: 13px "Segoe UI", sans-serif; }

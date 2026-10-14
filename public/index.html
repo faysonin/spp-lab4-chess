@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Шахматы онлайн</title>
   <link rel="stylesheet" href="/css/style.css">
   <link rel="icon" href="/pieces/wN.svg">
@@ -12,6 +12,7 @@
     <div class="card">
       <h1>Шахматы</h1>
       <p class="lead">Два игрока за столом, остальные смотрят. Ходы сразу видны всем в комнате.</p>
+      <p id="lobbyStatus" class="status wait">Подключение…</p>
       <form id="joinForm" autocomplete="off">
         <label>Ник
           <input id="nickInput" type="text" maxlength="16" placeholder="Игрок" required>

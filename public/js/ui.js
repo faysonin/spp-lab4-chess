@@ -19,6 +19,7 @@
     els.nick = $('nickInput');
     els.room = $('roomInput');
     els.conn = $('connStatus');
+    els.lobbyStatus = $('lobbyStatus');
     els.you = $('youLabel');
     els.roomLabel = $('roomCodeLabel');
     els.turn = $('turnLine');
@@ -57,15 +58,13 @@
   }
 
   function setConnection(state) {
-    els.conn.className = 'status';
-    if (state === 'online') { els.conn.classList.add('on'); els.conn.textContent = 'Онлайн'; }
-    else if (state === 'connecting') {
-      els.conn.classList.add('wait');
-      els.conn.textContent = 'Подключение…';
-    } else if (state === 'reconnect') {
-      els.conn.classList.add('wait');
-      els.conn.textContent = 'Переподключение…';
-    } else { els.conn.classList.add('off'); els.conn.textContent = 'Нет сети'; }
+    var text = 'Нет сети';
+    var cls = 'status off';
+    if (state === 'online') { text = 'Онлайн'; cls = 'status on'; }
+    else if (state === 'connecting') { text = 'Подключение…'; cls = 'status wait'; }
+    else if (state === 'reconnect') { text = 'Нет связи, нажмите «Войти»'; cls = 'status wait'; }
+    if (els.conn) { els.conn.className = cls; els.conn.textContent = text; }
+    if (els.lobbyStatus) { els.lobbyStatus.className = cls; els.lobbyStatus.textContent = text; }
   }
 
   function roleName(role) {

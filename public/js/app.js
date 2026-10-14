@@ -216,10 +216,11 @@
   document.getElementById('joinForm').addEventListener('submit', function (ev) {
     ev.preventDefault();
     joined = true;
+    saveSession(CH.ui.joinForm());
     if (CH.net.isOpen()) sendJoin();
     else {
-      saveSession(CH.ui.joinForm());
-      CH.net.connect();
+      CH.ui.toast('Подключаемся…');
+      CH.net.reconnectNow();
     }
   });
 
